@@ -2006,7 +2006,8 @@ static int hvf_sysreg_write(CPUState *cpu, uint32_t reg, uint64_t val)
             return 0;
         case SYSREG_PMINTENCLR_EL1:
             pmu_op_start(env);
-            env->cp15.c9_pminten |= val;
+            env->cp15.c9_pminten &= ~(val & pmu_counter_mask(env));
+            pmu_update_irq(env);
             pmu_op_finish(env);
             return 0;
         case SYSREG_PMOVSCLR_EL0:
