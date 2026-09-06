@@ -1612,10 +1612,12 @@ static bool hvf_handle_psci_call(CPUState *cpu, int *excp_ret)
          * anything further.
          */
         hvf_psci_cpu_off(arm_cpu);
+        *excp_ret = EXCP_HLT;
         break;
     case QEMU_PSCI_0_2_FN_SYSTEM_OFF:
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
         hvf_psci_cpu_off(arm_cpu);
+        *excp_ret = EXCP_HLT;
         break;
     case QEMU_PSCI_0_1_FN_CPU_ON:
     case QEMU_PSCI_0_2_FN_CPU_ON:
@@ -1625,10 +1627,20 @@ static bool hvf_handle_psci_call(CPUState *cpu, int *excp_ret)
         context_id = param[3];
         ret = arm_set_cpu_on(mpidr, entry, context_id,
                              hvf_psci_get_target_el(), target_aarch64);
+        if (ret == QEMU_ARM_POWERCTL_RET_SUCCESS) {
+            target_cpu_state = arm_get_cpu_by_id(mpidr);
+            /*
+             * Queue synchronization after the CPU_ON reset work, marking
+             * its new register state dirty before the target reenters HVF.
+             */
+            cpu_synchronize_post_reset(target_cpu_state);
+        }
         break;
     case QEMU_PSCI_0_1_FN_CPU_OFF:
     case QEMU_PSCI_0_2_FN_CPU_OFF:
         hvf_psci_cpu_off(arm_cpu);
+        /* Leave the execution loop so the queued power-off work can run. */
+        *excp_ret = EXCP_HLT;
         break;
     case QEMU_PSCI_0_1_FN_CPU_SUSPEND:
     case QEMU_PSCI_0_2_FN_CPU_SUSPEND:
