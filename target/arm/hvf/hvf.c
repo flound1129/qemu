@@ -1141,16 +1141,13 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     } regs[] = {
         { HV_FEATURE_REG_ID_AA64PFR0_EL1, ID_AA64PFR0_EL1_IDX },
         { HV_FEATURE_REG_ID_AA64PFR1_EL1, ID_AA64PFR1_EL1_IDX },
-        /* Add ID_AA64PFR2_EL1 here when HVF supports it */
         { HV_FEATURE_REG_ID_AA64DFR0_EL1, ID_AA64DFR0_EL1_IDX },
         { HV_FEATURE_REG_ID_AA64DFR1_EL1, ID_AA64DFR1_EL1_IDX },
         { HV_FEATURE_REG_ID_AA64ISAR0_EL1, ID_AA64ISAR0_EL1_IDX },
         { HV_FEATURE_REG_ID_AA64ISAR1_EL1, ID_AA64ISAR1_EL1_IDX },
-        /* Add ID_AA64ISAR2_EL1 here when HVF supports it */
         { HV_FEATURE_REG_ID_AA64MMFR0_EL1, ID_AA64MMFR0_EL1_IDX },
         { HV_FEATURE_REG_ID_AA64MMFR1_EL1, ID_AA64MMFR1_EL1_IDX },
         { HV_FEATURE_REG_ID_AA64MMFR2_EL1, ID_AA64MMFR2_EL1_IDX },
-        /* Add ID_AA64MMFR3_EL1 here when HVF supports it */
     };
     hv_return_t r = HV_SUCCESS;
     hv_vcpu_config_t config = hv_vcpu_config_create();
@@ -1172,6 +1169,23 @@ static bool hvf_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         r |= hv_vcpu_config_get_feature_reg(config, regs[i].reg,
                                             &host_isar.idregs[regs[i].index]);
     }
+
+#if defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && \
+    __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+    if (__builtin_available(macOS 27.0, *)) {
+        static const struct isar_regs regs_27[] = {
+            { HV_FEATURE_REG_ID_AA64ISAR2_EL1, ID_AA64ISAR2_EL1_IDX },
+            { HV_FEATURE_REG_ID_AA64PFR2_EL1, ID_AA64PFR2_EL1_IDX },
+            { HV_FEATURE_REG_ID_AA64MMFR3_EL1, ID_AA64MMFR3_EL1_IDX },
+            { HV_FEATURE_REG_ID_AA64MMFR4_EL1, ID_AA64MMFR4_EL1_IDX },
+        };
+
+        for (i = 0; i < ARRAY_SIZE(regs_27); i++) {
+            r |= hv_vcpu_config_get_feature_reg(config, regs_27[i].reg,
+                                        &host_isar.idregs[regs_27[i].index]);
+        }
+    }
+#endif
 
     if (__builtin_available(macOS 15.2, *)) {
         static const struct sme_isar_regs {
